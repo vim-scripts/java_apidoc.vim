@@ -15,11 +15,11 @@
 " 2) (gVIM) Add the following lines to ~/.vimrc
 "-----------------------------------------------------------------------------
 "  au FileType java let browser="xterm --geometry 100x40 -e lynx"
-"  au FileType java let javadoc_path="/home/etch/Dox/java-1.4-api,/home/etch/Dox/ejb"
+"  au FileType java let java_api_path="/home/etch/Dox/java-1.4-api,/home/etch/Dox/ejb"
 "  au FileType java nmap <F2> viw"jy:call OpenJavadoc("j")
 "-----------------------------------------------------------------------------
 "
-" (Note:  is CTRL-V CTRL-R,  is CTRL-V CTRL-M)
+" (Note:  is CTRL-V CTRL-R,  is CTRL-V CTRL-M)
 "
 " CONFIGURATION - BROWSER
 " If you don't want to use xterm and lynx to show the help, you can change
@@ -36,7 +36,7 @@
 " browsers are usable with this macro :o(
 "
 " CONFIGURATION - JAVA API PATH
-" Just set the javadoc_path variable to a comma separated list of paths to
+" Just set the java_api_path variable to a comma separated list of paths to
 " the tops of the Javadoc trees.
 "
 " CONFIGURATION - KEY AND REGISTER ASSIGNMENT
@@ -45,120 +45,101 @@
 " the function call. Change these if you use them for something else.
 " 
 " CAVEAT
-" It can be pretty slow when looking for a class name and your javadoc_path
+" It can be pretty slow when looking for a class name and your java_api_path
 " contains a lot of files.
 
-"amended to work for Win environment"
+" Set this to 0 if you really want all the class_use files as well.
+let s:skip_class_use = 1
+
 function! OpenJavadoc(classname)
-  call Debug("classname = " . a:classname)
-  let line = getline(".")
-  call Debug ("line = " . line) 
-  let regex = '^import\s\+\(\S\+\);$'
-  call Debug ("regex = " . regex)
-  let l = matchstr(line, regex)
-  call Debug ("l = " . l)
-  let file = substitute(l, regex, '\1', '')
-  call Debug ("file = " . file) 
-  let null = ''
+	let line = getline(".")
+	let regex = '^import\s\+\(\S\+\);$'
+	let l = matchstr(line, regex)
+	let file = substitute(l, regex, '\1', '')
+	let null = ''
+	let s:found = 0
 
-  let file = substitute(file, '\.', '/', 'g')
-  call Debug ("file = " . file) 
-  let javapath = g:javadoc_path
-  let regex = "^[^,]*"
-  
-  call Debug ("javapath = " . javapath)
- 
-  if strlen(file) > 0
-    while (strlen(javapath))
-      let path = GetFirstPathElement(javapath, regex)
-      call Debug ("path = " . path)
-      let javapath = RemoveFirstPathElement(javapath, regex)
-      call Debug ("javapath = " . javapath)
-      let lfile = path . "/" . file . ".html"
-      call Debug ("lfile = " . lfile)
+	let file = substitute(file, '\.', '/', 'g')
 
-      if ((match(lfile, "\*\.html$") != -1) && has("gui_running"))
-        let lfile = substitute(lfile, "\*\.html$", "", "")
-        call Debug ("lfile = " . lfile)
-        if (isdirectory(expand(lfile)))
-          let null = system(g:browser.' '.lfile.' &')
-        endif
-      elseif (filereadable(expand(lfile)))
-        call Debug ("lfile = " . lfile)
-        let null = system('"'.g:browser.'" '.lfile)
-        let null = 'found file already'
-        break
-      endif
-    endwhile
-  else
-    call Debug("file = ''. skipping to look for classname.html")
-  endif
+	let javapath = g:javadoc_path
+	let regex = "^[^,]*"
+	let trimmed_classname = substitute(a:classname, '\W', '', 'g')
+	if (strlen(trimmed_classname) < 1)
+		echo "Class name is too short"
+		return
+	endif
+	while (strlen(javapath))
+		let path = GetFirstPathElement(javapath, regex)
+		let javapath = RemoveFirstPathElement(javapath, regex)
+		let lfile = path . "/" . file . ".html"
+		if ((match(lfile, "\*\.html$") != -1) && has("gui_running"))
+			let lfile = substitute(lfile, "\*\.html$", "", "")
+			if (isdirectory(expand(lfile)))
+				let null = system(g:browser.' '.lfile.' &')
+				let s:found = s:found + 1
+			endif
+		elseif (filereadable(expand(lfile)))
+			let null = system(g:browser.' '.lfile.' &')
+			let s:found = s:found + 1
+			break
+		endif
+	endwhile
 
-  call Debug("null = " . null)
-  call Debug("strlen(null) = " . strlen(null) )
-  if (strlen(null) == 0)
-    call Debug("looking for classname.html")
-    " Couldn't find the file directly, so do the equivalent of a system find
-    " on each path element and sub-directory.
-    
-    " Loop through the given path elements
-    let javapath = g:javadoc_path
-    call Debug("javapath = " . javapath)
-    while (strlen(javapath))
-      let path = GetFirstPathElement(javapath, regex)
-      call Debug("path = " . path)
-      call FindTarget(path, a:classname.".html")
-      let javapath = RemoveFirstPathElement(javapath, regex)
-      call Debug("javapath = " . javapath )
-    endwhile
-  endif
-"   let null = system('"'.g:browser.'" '.'C:/j2sdk1.4.0_01/docs/api/java/lang/System.html' )
-  call Debug ("Done")
+	if (s:found == 0)
+		" Couldn't find the file directly, so do the equivalent of a system find
+		" on each path element and sub-directory.
 
-  return file
+		" Loop through the given path elements
+		let javapath = g:javadoc_path
+		while (strlen(javapath))
+			let path = GetFirstPathElement(javapath, regex)
+			call FindTarget(path, a:classname.".html")
+			let javapath = RemoveFirstPathElement(javapath, regex)
+		endwhile
+	endif
+
+	if (s:found == 1)
+		echo "Found 1 page"
+	else
+		echo "Found ".s:found." pages"
+	endif
+
 endfunction
 
 
 " Get every file within the path and see if it looks like the target.
 " If a directory is found then this function is called recursively.
 function! FindTarget(path, target)
-"   call Debug("FindTarget+")
-  call Debug("looking for " . a:target . " in " . a:path)
-  let findlist = substitute(glob(a:path."/*").",", "\n", ",", "g")
-  call Debug("findlist = " . findlist )
-  let null = ''
-  while (strlen(findlist))
-    let fpath = GetFirstPathElement(findlist, "[^,]*")
-"     call Debug("fpath = " . fpath )
-    let findlist = substitute(findlist, "[^,]*,", "", "")
-"     call Debug("findlist = " . findlist )
-    if (isdirectory(fpath))
-       call FindTarget(fpath, a:target)
-    else
-      if (match(fpath, '\\'.a:target) > -1)
-        let null = system('"'.g:browser.'" '.fpath)
-        break
-      endif
-    endif
-  endwhile
-"   call Debug("FindTarget-")
+	let findlist = substitute(glob(a:path."/*").",", "\n", ",", "g")
+	let null = ''
+	while (strlen(findlist))
+		let fpath = GetFirstPathElement(findlist, "[^,]*")
+		if (match(fpath, "/class-use/") > -1 && s:skip_class_use)
+			break
+		endif
+		let findlist = substitute(findlist, "[^,]*,", "", "")
+		if (isdirectory(fpath))
+			call FindTarget(fpath, a:target)
+		else
+			if (match(fpath, '/'.a:target) > -1)
+				let null = system(g:browser.' '.fpath.' &')
+				let s:found = s:found + 1
+			endif
+		endif
+	endwhile
 endfunction
 
 " Return everything up to the first regex in a path
 function! GetFirstPathElement(path, regex)
-"   call Debug("GetFirstPathElement+")
-"   call Debug("a:path = " . a:path) 
-"   call Debug("a:regex = " . a:regex) 
-  
-  let lpath = matchstr(a:path, a:regex)
-  return lpath
+	let lpath = matchstr(a:path, a:regex)
+	return lpath
 endfunction
 
 " Remove everything up to the first "," in a path
 function! RemoveFirstPathElement(path, regex)
-  let lpath = a:path
-  let lregex = a:regex
-  let lpath = substitute(lpath, lregex, "", "")
-  let lpath = substitute(lpath, "^,", "", "")
-  return lpath
+	let lpath = a:path
+	let lregex = a:regex
+	let lpath = substitute(lpath, lregex, "", "")
+	let lpath = substitute(lpath, "^,", "", "")
+	return lpath
 endfunction
