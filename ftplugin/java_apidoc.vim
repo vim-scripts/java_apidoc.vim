@@ -48,47 +48,72 @@
 " It can be pretty slow when looking for a class name and your javadoc_path
 " contains a lot of files.
 
+"amended to work for Win environment"
 function! OpenJavadoc(classname)
+  call Debug("classname = " . a:classname)
   let line = getline(".")
+  call Debug ("line = " . line) 
   let regex = '^import\s\+\(\S\+\);$'
+  call Debug ("regex = " . regex)
   let l = matchstr(line, regex)
+  call Debug ("l = " . l)
   let file = substitute(l, regex, '\1', '')
+  call Debug ("file = " . file) 
   let null = ''
 
   let file = substitute(file, '\.', '/', 'g')
-
+  call Debug ("file = " . file) 
   let javapath = g:javadoc_path
   let regex = "^[^,]*"
+  
+  call Debug ("javapath = " . javapath)
+ 
+  if strlen(file) > 0
+    while (strlen(javapath))
+      let path = GetFirstPathElement(javapath, regex)
+      call Debug ("path = " . path)
+      let javapath = RemoveFirstPathElement(javapath, regex)
+      call Debug ("javapath = " . javapath)
+      let lfile = path . "/" . file . ".html"
+      call Debug ("lfile = " . lfile)
 
-  while (strlen(javapath))
-    let path = GetFirstPathElement(javapath, regex)
-
-    let javapath = RemoveFirstPathElement(javapath, regex)
-    let lfile = path . "/" . file . ".html"
-
-    if ((match(lfile, "\*\.html$") != -1) && has("gui_running"))
-      let lfile = substitute(lfile, "\*\.html$", "", "")
-      if (isdirectory(expand(lfile)))
-        let null = system(g:browser.' '.lfile.' &')
+      if ((match(lfile, "\*\.html$") != -1) && has("gui_running"))
+        let lfile = substitute(lfile, "\*\.html$", "", "")
+        call Debug ("lfile = " . lfile)
+        if (isdirectory(expand(lfile)))
+          let null = system(g:browser.' '.lfile.' &')
+        endif
+      elseif (filereadable(expand(lfile)))
+        call Debug ("lfile = " . lfile)
+        let null = system('"'.g:browser.'" '.lfile)
+        let null = 'found file already'
+        break
       endif
-    elseif (filereadable(expand(lfile)))
-      let null = system(g:browser.' '.lfile.' &')
-      break
-    endif
-  endwhile
+    endwhile
+  else
+    call Debug("file = ''. skipping to look for classname.html")
+  endif
 
+  call Debug("null = " . null)
+  call Debug("strlen(null) = " . strlen(null) )
   if (strlen(null) == 0)
+    call Debug("looking for classname.html")
     " Couldn't find the file directly, so do the equivalent of a system find
     " on each path element and sub-directory.
     
     " Loop through the given path elements
     let javapath = g:javadoc_path
+    call Debug("javapath = " . javapath)
     while (strlen(javapath))
       let path = GetFirstPathElement(javapath, regex)
+      call Debug("path = " . path)
       call FindTarget(path, a:classname.".html")
       let javapath = RemoveFirstPathElement(javapath, regex)
+      call Debug("javapath = " . javapath )
     endwhile
   endif
+"   let null = system('"'.g:browser.'" '.'C:/j2sdk1.4.0_01/docs/api/java/lang/System.html' )
+  call Debug ("Done")
 
   return file
 endfunction
@@ -97,23 +122,34 @@ endfunction
 " Get every file within the path and see if it looks like the target.
 " If a directory is found then this function is called recursively.
 function! FindTarget(path, target)
+"   call Debug("FindTarget+")
+  call Debug("looking for " . a:target . " in " . a:path)
   let findlist = substitute(glob(a:path."/*").",", "\n", ",", "g")
+  call Debug("findlist = " . findlist )
   let null = ''
   while (strlen(findlist))
     let fpath = GetFirstPathElement(findlist, "[^,]*")
+"     call Debug("fpath = " . fpath )
     let findlist = substitute(findlist, "[^,]*,", "", "")
+"     call Debug("findlist = " . findlist )
     if (isdirectory(fpath))
-      call FindTarget(fpath, a:target)
+       call FindTarget(fpath, a:target)
     else
-      if (match(fpath, '/'.a:target) > -1)
-        let null = system(g:browser.' '.fpath.' &')
+      if (match(fpath, '\\'.a:target) > -1)
+        let null = system('"'.g:browser.'" '.fpath)
+        break
       endif
     endif
   endwhile
+"   call Debug("FindTarget-")
 endfunction
 
 " Return everything up to the first regex in a path
 function! GetFirstPathElement(path, regex)
+"   call Debug("GetFirstPathElement+")
+"   call Debug("a:path = " . a:path) 
+"   call Debug("a:regex = " . a:regex) 
+  
   let lpath = matchstr(a:path, a:regex)
   return lpath
 endfunction
