@@ -27,7 +27,7 @@ let browser="dillo"
 " Set the javadoc_path variable to a comma separated list of paths to
 " the tops of the Javadoc trees. Change these to match your api locations.
 "-----------------------------------------------------------------------------
-let javadoc_path="/home/etch/www/dox/java/j2se1.4.2/api,/opt/j2sdkee1.3.1/doc/api,/home/etch/www/dox/java/java-gnome-0.8.3/doc-core/api"
+let javadoc_path="/home/etch/www/dox/java/j2se1.4.2/api,/opt/j2sdkee1.3.1/doc/api,/home/etch/www/dox/java/java-gnome-2.6.0.1/doc-core/api"
 " Windows users....
 "let javadoc_path="C:\\j2se1.4.2\\doc\\api"
 "-----------------------------------------------------------------------------
@@ -78,11 +78,21 @@ function! OpenJavadoc()
 		if ((match(lfile, "\*\.html$") != -1) && has("gui_running"))
 			let lfile = substitute(lfile, "\*\.html$", "", "")
 			if (isdirectory(expand(lfile)))
-				let null = system(g:browser.' '.lfile.' &')
+				if has("win32")
+					let lfile = substitute(lfile, '/', '\', 'g')
+					let null = system(g:browser.' '.lfile)
+				else
+					let null = system(g:browser.' '.lfile.' &')
+				endif
 				let s:found = s:found + 1
 			endif
 		elseif (filereadable(expand(lfile)))
-			let null = system(g:browser.' '.lfile.' &')
+			if has("win32")
+				let lfile = substitute(lfile, '/', '\', 'g')
+				let null = system(g:browser.' '.lfile)
+			else
+				let null = system(g:browser.' '.lfile.' &')
+			endif
 			let s:found = s:found + 1
 			break
 		endif
