@@ -15,7 +15,7 @@
 " 2) (gVIM) Add the following lines to ~/.vimrc
 "-----------------------------------------------------------------------------
 "  au FileType java let browser="xterm --geometry 100x40 -e lynx"
-"  au FileType java let java_api_path="/home/etch/Dox/java-1.4-api,/home/etch/Dox/ejb"
+"  au FileType java let javadoc_path="/home/etch/Dox/java-1.4-api,/home/etch/Dox/ejb"
 "  au FileType java nmap <F2> viw"jy:call OpenJavadoc("j")
 "-----------------------------------------------------------------------------
 "
@@ -36,7 +36,7 @@
 " browsers are usable with this macro :o(
 "
 " CONFIGURATION - JAVA API PATH
-" Just set the java_api_path variable to a comma separated list of paths to
+" Just set the javadoc_path variable to a comma separated list of paths to
 " the tops of the Javadoc trees.
 "
 " CONFIGURATION - KEY AND REGISTER ASSIGNMENT
@@ -45,7 +45,7 @@
 " the function call. Change these if you use them for something else.
 " 
 " CAVEAT
-" It can be pretty slow when looking for a class name and your java_api_path
+" It can be pretty slow when looking for a class name and your javadoc_path
 " contains a lot of files.
 
 function! OpenJavadoc(classname)
